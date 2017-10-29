@@ -25,6 +25,26 @@
             <artifactId>gs-ui</artifactId>
             <version>1.2</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/com.github.spirom/spark-mongodb-connector_2.10 -->
+        <!--<dependency>-->
+            <!--<groupId>com.github.spirom</groupId>-->
+            <!--<artifactId>spark-mongodb-connector_2.10</artifactId>-->
+            <!--<version>0.3.0</version>-->
+        <!--</dependency>-->
+        <!-- https://mvnrepository.com/artifact/org.mongodb.spark/mongo-spark-connector_2.11 -->
+        <dependency>
+            <groupId>org.mongodb.spark</groupId>
+            <artifactId>mongo-spark-connector_2.11</artifactId>
+            <version>2.2.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-sql_2.11</artifactId>
+            <version>2.2.0</version>
+
+            <!--如果出现spark-sql的错误就把下面一行注释打开-->
+            <!--<scope>provided</scope>-->
+        </dependency>
     </dependencies>
 
 </project>
