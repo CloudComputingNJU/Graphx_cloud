@@ -4,31 +4,38 @@ import com.mongodb.spark.MongoSpark
 import com.mongodb.spark.config.ReadConfig
 import org.apache.spark.sql.SparkSession
 
+import scala.collection.mutable.ArrayBuffer
+
 object GraphxCreator extends App {
-  def test() = {
+  def test(): Unit = {
     val sparkConf = new SparkConf()
       .setAppName("GraphCreator13")
       .setMaster("local[2]")
       .set("spark.mongodb.input.uri", "mongodb://127.0.0.1/jd.sorted_comments")
     val sc: SparkContext = new SparkContext(sparkConf)
-    //  val spark = SparkSession.builder()
-    //    .master("local")
-    //    .appName("GraphCreator13")
-    //    .config("spark.mongodb.input.uri", "mongodb://127.0.0.1/jd.sorted_comments")
-    //    .config("spark.driver.host", "localhost")
-    //    .getOrCreate()
     val readConfig = ReadConfig(
       Map(
         "uri" -> "mongodb://localhost:27017",
         "database" -> "jd",
         "collection" -> "sorted_comments"), Some(ReadConfig(sc)))
-    val commentRdd = MongoSpark.load(sc, readConfig)
+    def getCharacterPair(content: String): Array[String] = {
+      var characterArray = content.split("")
+      var edgeArray = new ArrayBuffer[Array[String]]()
+      var i = 0
+      for (i <- 0 until characterArray.length-1){
+          edgeArray += Array[String](characterArray(i), characterArray(i+1))
+      }
+      return edgeArray.toArray[String]
+    }
 
-    //  val commentRdd =
+    val commentsRdd = MongoSpark.load(sc, readConfig)
+    var rs = commentsRdd
+      .map(doc=>doc.get("content").asInstanceOf[String])
+//      .flatMap(f)
 
     println(null)
-    println(commentRdd.count)
-    println(commentRdd.first.toJson)
+    println(rs.count)
+    println(commentsRdd.first)
   }
 
   //  MongoSpark
