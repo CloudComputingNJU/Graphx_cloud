@@ -18,14 +18,15 @@ object GraphxCreator extends App {
         "uri" -> "mongodb://localhost:27017",
         "database" -> "jd",
         "collection" -> "sorted_comments"), Some(ReadConfig(sc)))
-    def getCharacterPair(content: String): Array[String] = {
+    def getCharacterPair(content: String): Array[Array[String]] = {
       var characterArray = content.split("")
       var edgeArray = new ArrayBuffer[Array[String]]()
       var i = 0
       for (i <- 0 until characterArray.length-1){
           edgeArray += Array[String](characterArray(i), characterArray(i+1))
       }
-      return edgeArray.toArray[String]
+      edgeArray.toArray[Array[String]]
+//      characterArray
     }
 
     val commentsRdd = MongoSpark.load(sc, readConfig)
