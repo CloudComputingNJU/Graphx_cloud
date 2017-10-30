@@ -15,7 +15,8 @@ object GraphxDraw extends App {
     val sparkConf = new SparkConf()
       .setAppName("Graphx13")
       .setMaster("local[2]")
-    //      .setMaster("spark://pyq-master:7077")
+      .set("spark.driver.host", "localhost")
+  //      .setMaster("spark://pyq-master:7077")
     //      .set("spark.driver.host", "114.212.247.255")
     val sc = new SparkContext(sparkConf);
     val verticeFile = "./data/testVerticeFile.json"
