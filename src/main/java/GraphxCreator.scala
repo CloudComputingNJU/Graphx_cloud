@@ -12,7 +12,7 @@ object GraphxCreator extends App {
   val sparkConf = new SparkConf()
     .setAppName("GraphCreator13")
     .setMaster("local[2]")
-    //    .set("spark.driver.host", "localhost")
+        .set("spark.driver.host", "localhost")
     //      .set("spark.mongodb.input.uri", "mongodb://127.0.0.1/jd.sorted_comments")
     .set("spark.mongodb.input.uri", "mongodb://zc-slave/jd.comments_sorted")
     .set("spark.mongodb.output.uri","mongodb://zc-slave/jd.graphx_nodes")
@@ -63,7 +63,7 @@ object GraphxCreator extends App {
       .sortByKey(false)
       .map(reverseWeightedEdge => (reverseWeightedEdge._2, reverseWeightedEdge._1))
 
-    val top = sortedEdgeWeightRdd.take(300) //edgeWeightRdd.sortBy((edge, weight)=>)
+    val top = sortedEdgeWeightRdd.take(50) //edgeWeightRdd.sortBy((edge, weight)=>)
 
     println(sortedEdgeWeightRdd.count())
     println(top)
@@ -83,6 +83,10 @@ object GraphxCreator extends App {
     println("start")
 
     test()
+
+
+
+
 
 
 }
