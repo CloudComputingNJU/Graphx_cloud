@@ -115,9 +115,9 @@ object GraphxDraw extends App {
 //        edge.addAttribute("ui.style","size:"+link.weight+"px;")
         edge.addAttribute("ui.label",""+link.weight)
     }
-      val viewer = wordGraph.display();
+      wordGraph.display();
   // Let the layout work ...
-      viewer.disableAutoLayout();
+//      viewer.disableAutoLayout();
 
 }
 
