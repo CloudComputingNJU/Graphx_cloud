@@ -31,7 +31,8 @@ object GraphxCreator extends App {
       var edgeArray = new ArrayBuffer[List[String]]()
 
       def filterCharacter(character: String): Boolean = {
-        val punctuations = Array[String]("。", "，", "！", "？", "：", "；", "～", "（", "）", " ","~","?",";",".","&")
+        val punctuations = Array[String]("。", "，", "！", "？", "：", "；", "～", "（", "）", " ","~","?",";",".","&",
+        "\0","\'","(",")","[","]",",","\\","$","@","/","?")
         for (punctuation <- punctuations) {
           if (character.equals(punctuation)||
             (character.compareToIgnoreCase("0")>=0 && character.compareToIgnoreCase("9")<=0)) {
@@ -63,14 +64,14 @@ object GraphxCreator extends App {
       .sortByKey(false)
       .map(reverseWeightedEdge => (reverseWeightedEdge._2, reverseWeightedEdge._1))
 
-    val top = sortedEdgeWeightRdd.take(50) //edgeWeightRdd.sortBy((edge, weight)=>)
+    val top = sortedEdgeWeightRdd.collect() //edgeWeightRdd.sortBy((edge, weight)=>)
 
     println(sortedEdgeWeightRdd.count())
-    println(top)
-    for (item <- top) {
-      println(item._1 + ":" + item._2)
-    }
-    val writeConfig = WriteConfig(Map("collection" -> "graphx_edges"), Some(WriteConfig(sc)))
+//    println(top)
+//    for (item <- top) {
+//      println(item._1 + ":" + item._2)
+//    }
+    val writeConfig = WriteConfig(Map("collection" -> "all_edges"), Some(WriteConfig(sc)))
 
     val documents = sc.parallelize(top.map(node =>
 

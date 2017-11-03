@@ -1,16 +1,13 @@
 import com.mongodb.spark.MongoSpark
-import com.mongodb.spark.config.ReadConfig
-import org.apache.commons.math.stat.Frequency
+import com.mongodb.spark.config.{ReadConfig, WriteConfig}
 import org.apache.spark.graphx.{Edge, Graph, VertexId}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
+import org.bson.Document
 import org.graphstream.graph.implementations._
-
-import scala.util.parsing.json.{JSON, JSONObject}
 import org.graphstream.graph.{Graph => GraphStream}
-import org.graphstream.ui.swingViewer.Viewer
 
-case class Word(wordName: String,frequency:Int)
+case class Word(wordName: String)
 
 case class Link(weight: Int)
 
@@ -20,6 +17,7 @@ object GraphxDraw extends App {
       .setMaster("local[2]")
 //      .set("spark.driver.host", "localhost")
       .set("spark.mongodb.input.uri", "mongodb://zc-slave/jd.graphx_edges")
+        .set("spark.mongodb.output.uri", "mongodb://zc-slave/jd.graphx_vertexsWithID")
   //      .setMaster("spark://pyq-master:7077")
     //      .set("spark.driver.host", "114.212.247.255")
 
@@ -28,14 +26,9 @@ object GraphxDraw extends App {
       Map(
         "uri" -> "mongodb://zc-slave:27017",
         "database" -> "jd",
-        //        "collection" -> "sorted_comments",
         "collection" -> "graphx_edges"), Some(ReadConfig(sc)))
     val edgeMongoRDD = MongoSpark.load(sc, readConfig)
-//    val verticeFile = "./data/testVerticeFile.json"
-//    val edgeFile = "./data/testEdgeFile.json"
     def getNodesRDD():RDD[(VertexId,Word)] = {
-
-
             val nodeList = List()
             val sourceNode = edgeMongoRDD.map(edge =>
               edge.get("sourceName").asInstanceOf[String]
@@ -44,10 +37,10 @@ object GraphxDraw extends App {
               edge.get("desName").asInstanceOf[String]
             )
             val allNode = sourceNode.distinct().union(desNode.distinct()).distinct()
-            val nodesWithID = allNode.map( node => Word(node.toString(),0)).zipWithUniqueId()
+            val nodesWithID = allNode.map( node => Word(node.toString())).zipWithUniqueId()
             val nodesRDD=nodesWithID.map(node =>(node._2.toLong,node._1))
-    //        val nodesRDD : RDD[(VertexId,Word)]= MongoSpark.load(sc, readConfig)
             println(nodesRDD.count())
+            val nodesRDDs = nodesRDD.collect()
             for(node <- nodesRDD){
               println(node._1,node._2.wordName)
             }
@@ -64,31 +57,18 @@ object GraphxDraw extends App {
       val edgesRDD:RDD[Edge[Link]] = targetEdgeRDD.map(edge =>
           Edge(edge._1._1,edge._1._2,Link(edge._2))
       )
-//      println(edgesRDD.count())
-//      for(item <-desKeyEdgRDD){
-//        println(item._2._1)
-//      }
+
+      val writeConfig = WriteConfig(Map("collection" -> "graphx_edgesWithID"), Some(WriteConfig(sc)))
+      val edgesRDDs = edgesRDD.collect()
+      val documents = sc.parallelize(edgesRDDs.map(edge =>
+        Document.parse(s"{sourceId:${edge.srcId},desId:${edge.dstId},weight:${edge.attr.weight}}")))
+      MongoSpark.save(documents,writeConfig)
       return edgesRDD
     }
-
+    getEdgesRDD()
+    getNodesRDD()
 
     def createGraph(): Graph[Word, Link] = {
-//      val nodes = sc.textFile(verticeFile)
-//      val edges = sc.textFile(edgeFile)
-//      val edgesRDD: RDD[Edge[Link]] = edges.map { edge =>
-//        val jsonObj = JSON.parseFull(edge)
-//        val map: Map[String, Any] = jsonObj.get.asInstanceOf[Map[String, Any]]
-//        Edge(map.get("sourceId").get.asInstanceOf[String].toLong,
-//          map.get("desId").get.asInstanceOf[String].toLong,
-//          Link(map.get("weight").get.asInstanceOf[String].toInt))
-//      }
-//
-//      val nodesRDD: RDD[(VertexId, Word)] = nodes.map { node =>
-//        val jsonObj = JSON.parseFull(node)
-//        val map: Map[String, Any] = jsonObj.get.asInstanceOf[Map[String, Any]]
-//        val vertexid = map.get("vertexId").get.asInstanceOf[String].toLong
-//        (vertexid, Word(map.get("wordName").get.asInstanceOf[String]))
-//      }
       val nodesRDD: RDD[(VertexId, Word)] = getNodesRDD();
       val edgesRDD: RDD[Edge[Link]] = getEdgesRDD();
       val graph: Graph[Word, Link] = Graph(nodesRDD, edgesRDD)
@@ -103,10 +83,13 @@ object GraphxDraw extends App {
     wordGraph.addAttribute("ui.stylesheet", "url(./css/styleSheet.css)")
     wordGraph.addAttribute("ui.quality")
     wordGraph.addAttribute("ui.antialias")
+    wordGraph.addAttribute("layout.force","100")
+    wordGraph.addAttribute("layout.quality","0")
 
     for ((id, word: Word) <- graph.vertices.collect()) {
       val node = wordGraph.addNode(id.toString).asInstanceOf[MultiNode]
       node.addAttribute("ui.label",word.wordName)
+//      node.addAttribute("layout.weight","1000")
     }
 
     for(Edge(src,des,link:Link) <- graph.edges.collect()){
@@ -114,10 +97,8 @@ object GraphxDraw extends App {
         .asInstanceOf[AbstractEdge]
 //        edge.addAttribute("ui.style","size:"+link.weight+"px;")
         edge.addAttribute("ui.label",""+link.weight)
+        edge.addAttribute("layout.weight","0.1")
     }
       wordGraph.display();
-  // Let the layout work ...
-//      viewer.disableAutoLayout();
-
 }
 
