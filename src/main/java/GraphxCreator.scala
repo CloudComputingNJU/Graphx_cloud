@@ -12,18 +12,18 @@ object GraphxCreator extends App {
   val sparkConf = new SparkConf()
     .setAppName("GraphCreator13")
     .setMaster("local[2]")
-        .set("spark.driver.host", "localhost")
-    //      .set("spark.mongodb.input.uri", "mongodb://127.0.0.1/jd.sorted_comments")
-    .set("spark.mongodb.input.uri", "mongodb://zc-slave/jd.comments_sorted")
-    .set("spark.mongodb.output.uri","mongodb://zc-slave/jd.graphx_nodes")
+    .set("spark.driver.host", "localhost")
+    .set("spark.mongodb.input.uri", "mongodb://" + Configuration.MONGODB_HOST + "/jd.comments_sorted")
+    .set("spark.mongodb.output.uri", "mongodb://" + Configuration.MONGODB_HOST + "/jd.graphx_nodes")
   val sc: SparkContext = new SparkContext(sparkConf)
+
   def test(): Unit = {
     val readConfig = ReadConfig(
       Map(
-        "uri" -> "mongodb://zc-slave:27017",
+        //        "uri" -> "mongodb://"+Configuration.MONGODB_HOST+":27017",
         "database" -> "jd",
-        //        "collection" -> "sorted_comments",
-        "collection" -> "comments_sorted"), Some(ReadConfig(sc)))
+        "collection" -> "comments_sorted"),
+      Some(ReadConfig(sc)))
 
 
     def getCharacterPair(content: String): Array[List[String]] = {
@@ -31,11 +31,11 @@ object GraphxCreator extends App {
       var edgeArray = new ArrayBuffer[List[String]]()
 
       def filterCharacter(character: String): Boolean = {
-        val punctuations = Array[String]("。", "，", "！", "？", "：", "；", "～", "（", "）", " ","~","?",";",".","&",
-        "\0","\'","(",")","[","]",",","\\","$","@","/","?")
+        val punctuations = Array[String]("。", "，", "！", "？", "：", "；", "～", "（", "）", " ", "~", "?", ";", ".", "&",
+          "\0", "\'", "(", ")", "[", "]", ",", "\\", "$", "@", "/", "?")
         for (punctuation <- punctuations) {
-          if (character.equals(punctuation)||
-            (character.compareToIgnoreCase("0")>=0 && character.compareToIgnoreCase("9")<=0)) {
+          if (character.equals(punctuation) ||
+            (character.compareToIgnoreCase("0") >= 0 && character.compareToIgnoreCase("9") <= 0)) {
             return false
           }
         }
@@ -67,31 +67,20 @@ object GraphxCreator extends App {
     val top = sortedEdgeWeightRdd.collect() //edgeWeightRdd.sortBy((edge, weight)=>)
 
     println(sortedEdgeWeightRdd.count())
-//    println(top)
-//    for (item <- top) {
-//      println(item._1 + ":" + item._2)
-//    }
+    //    println(top)
+    //    for (item <- top) {
+    //      println(item._1 + ":" + item._2)
+    //    }
     val writeConfig = WriteConfig(Map("collection" -> "all_edges"), Some(WriteConfig(sc)))
 
     val documents = sc.parallelize(top.map(node =>
 
-        Document.parse(s"{sourceName:'${node._1(0)}',desName:'${node._1(1)}',weight:${node._2}}")))
-    MongoSpark.save(documents,writeConfig)
+      Document.parse(s"{sourceName:'${node._1(0)}',desName:'${node._1(1)}',weight:${node._2}}")))
+    MongoSpark.save(documents, writeConfig)
   }
 
   //  MongoSpark
+  println("start")
 
-    println("start")
-
-    test()
-
-
-
-
-
-
-}
-
-object GraphxCreatorObj {
-
+  test()
 }
