@@ -91,6 +91,7 @@ object GraphxDraw extends App {
   for ((id, word: Word) <- graph.vertices.collect()) {
     val node = wordGraph.addNode(id.toString).asInstanceOf[MultiNode]
     node.addAttribute("ui.label", word.wordName)
+    println("add a node")
     //      node.addAttribute("layout.weight","1000")
   }
 

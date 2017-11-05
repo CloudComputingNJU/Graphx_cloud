@@ -9,13 +9,13 @@ object GraphxSave extends App {
   val sparkConf = new SparkConf()
     .setAppName("GraphDraw13")
     .setMaster("local[2]")
-    .set("spark.mongodb.input.uri", "mongodb://zc-slave/jd.graphx_edges")
-    .set("spark.mongodb.output.uri", "mongodb://zc-slave/jd.graphx_vertexsWithID")
+      .set("spark.mongodb.input.uri", "mongodb://"+Configuration.MONGODB_HOST+"/jd.all_edges")
+      .set("spark.mongodb.output.uri", "mongodb://"+Configuration.MONGODB_HOST+"/jd.graphx_edgesWithID")
 
-  val sc = new SparkContext(sparkConf);
+  val sc = new SparkContext(sparkConf)
   val readConfig = ReadConfig(
     Map(
-      "uri" -> "mongodb://zc-slave:27017",
+      "uri" -> ("mongodb://" + Configuration.MONGODB_HOST + ":27017"),
       "database" -> "jd",
       "collection" -> "all_edges"), Some(ReadConfig(sc)))
   val edgeMongoRDD = MongoSpark.load(sc, readConfig)
@@ -65,39 +65,40 @@ object GraphxSave extends App {
   }
 
 
-  def getNodesRDD():RDD[(VertexId,Word)] = {
+  def getNodesRDD(): RDD[(VertexId, Word)] = {
     val readConfig = ReadConfig(
       Map(
-        "uri" -> "mongodb://zc-slave:27017",
+//        "uri" -> "mongodb://zc-slave:27017",
         "database" -> "jd",
         "collection" -> "graphx_vertexsWithID"), Some(ReadConfig(sc)))
-    val nodeMongoRDD= MongoSpark.load(sc, readConfig)
-    val nodesRDD:RDD[(VertexId,Word)] = nodeMongoRDD.map(node =>
-      (node.get("vertexId").asInstanceOf[Int].toString().toLong,Word(node.get("wordName").asInstanceOf[String]))
+    val nodeMongoRDD = MongoSpark.load(sc, readConfig)
+    val nodesRDD: RDD[(VertexId, Word)] = nodeMongoRDD.map(node =>
+      (node.get("vertexId").asInstanceOf[Int].toString().toLong, Word(node.get("wordName").asInstanceOf[String]))
     )
-    println(nodesRDD.count())
+    println("nodesRDD.count()"+nodesRDD.count())
     return nodesRDD
   }
+
   def getEdgesRDD(): RDD[Edge[Link]] = {
     val readConfig = ReadConfig(
       Map(
-        "uri" -> "mongodb://zc-slave:27017",
+//        "uri" -> "mongodb://zc-slave:27017",
         "database" -> "jd",
         "collection" -> "graphx_edgesWithID"), Some(ReadConfig(sc)))
-    val edgeMongoRDD= MongoSpark.load(sc, readConfig)
-    val edgesRDD:RDD[Edge[Link]] = edgeMongoRDD.map(edge =>
-      Edge(edge.get("sourceId").asInstanceOf[Int].toString().toLong,edge.get("desId").asInstanceOf[Int].toString().toLong,Link(edge.get("weight").asInstanceOf[Int]))
+    val edgeMongoRDD = MongoSpark.load(sc, readConfig)
+    val edgesRDD: RDD[Edge[Link]] = edgeMongoRDD.map(edge =>
+      Edge(edge.get("sourceId").asInstanceOf[Int].toString().toLong, edge.get("desId").asInstanceOf[Int].toString().toLong, Link(edge.get("weight").asInstanceOf[Int]))
     )
     println(edgesRDD.count())
     return edgesRDD
   }
 
-//    saveAllNodesRDD()
-//    saveAllEdgesRDD()
-//    getNodesRDD()
-//    getEdgesRDD()
-   val vertexRDD = getNodesRDD()
-   val edgeRDD = getEdgesRDD()
-   val graph: Graph[Word, Link] = Graph(vertexRDD, edgeRDD)
+//      saveAllNodesRDD()
+//      saveAllEdgesRDD()
+  //    getNodesRDD()
+  //    getEdgesRDD()
+  val vertexRDD = getNodesRDD()
+  val edgeRDD = getEdgesRDD()
+  val graph: Graph[Word, Link] = Graph(vertexRDD, edgeRDD)
 
 }
