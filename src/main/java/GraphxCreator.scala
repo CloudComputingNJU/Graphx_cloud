@@ -57,7 +57,7 @@ object GraphxCreator extends App {
 
     val commentsRdd = MongoSpark.load(sc, readConfig)
     val contentRdd = commentsRdd.map(doc => doc.get("content").asInstanceOf[String])
-    val pairRdd = contentRdd.flatMap(getCharacterPair)
+    val pairRdd: RDD[List[String]] = contentRdd.flatMap(getCharacterPair)
     val pairCountRdd = pairRdd.map(pair => (pair, 1))
     val edgeWeightRdd = pairCountRdd.reduceByKey((x1, x2) => x1 + x2)
     val sortedEdgeWeightRdd: RDD[(List[String], Int)] = edgeWeightRdd.map(weightedEdge => (weightedEdge._2, weightedEdge._1))
