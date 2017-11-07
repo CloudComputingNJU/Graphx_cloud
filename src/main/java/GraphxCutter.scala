@@ -19,6 +19,7 @@ import scala.util.Random
   * time: {$time}
   **/
 object GraphxCutter {
+  val tool: Tool.type = Tool
   val sparkConf: SparkConf = new SparkConf()
     .setAppName("GraphDraw13")
     .setMaster("local[2]")
@@ -161,7 +162,7 @@ object GraphxCutter {
     )
     val allVertex = sourceVertex.distinct().union(desVertex.distinct()).distinct()
     val verticesWithId: RDD[(VertexId, Word)] = allVertex.map(char => {
-      val id = ByteBuffer.wrap(char.getBytes("utf-8")).getLong
+      val id = tool.utf8ToLong(char)
       (id, Word(char))
     })
 
@@ -174,8 +175,8 @@ object GraphxCutter {
       val srcName = doc.get("sourceName").asInstanceOf[String]
       val desName = doc.get("desName").asInstanceOf[String]
       val weight = doc.get("weight").asInstanceOf[Int]
-      val srcId = ByteBuffer.wrap(srcName.getBytes("utf-8")).getLong
-      val desId = ByteBuffer.wrap(desName.getBytes("utf-8")).getLong
+      val srcId = tool.utf8ToLong(srcName)
+      val desId = tool.utf8ToLong(desName)
       Edge(srcId, desId, Link(weight))
     })
 
