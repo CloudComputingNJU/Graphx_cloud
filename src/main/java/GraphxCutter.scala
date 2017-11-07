@@ -1,5 +1,6 @@
 import java.util.Date
 
+import GraphxDraw.{readConfig, sc}
 import com.mongodb.spark.MongoSpark
 import com.mongodb.spark.config.{ReadConfig, WriteConfig}
 import com.mongodb.spark.rdd.MongoRDD
@@ -24,6 +25,7 @@ object GraphxCutter {
     .set("spark.mongodb.input.uri", "mongodb://" + Configuration.MONGODB_HOST + "/jd.comments_sorted")
   //    .set("spark.mongodb.output.uri", "mongodb://" + Configuration.MONGODB_HOST + "/jd.graphx_vertexsWithID")
 
+  // 读取评论
   val sc = new SparkContext(sparkConf)
   val commentsOriginalMongoRDD: MongoRDD[Document] = MongoSpark.load(sc)
 
@@ -31,12 +33,21 @@ object GraphxCutter {
   val $skip: Document = Document.parse("{$skip: 10}")
   val $limit: Document = Document.parse("{$limit: 5}")
 
-  val commentsPartMongoRDD: MongoRDD[Document] = commentsOriginalMongoRDD.withPipeline(Seq($match, $skip, $limit))
+  val commentsPartMongoRDD: MongoRDD[Document] = commentsOriginalMongoRDD //commentsOriginalMongoRDD.withPipeline(Seq($match, $skip, $limit))
 
   val contentRDD: RDD[String] = commentsPartMongoRDD.map(doc => doc.get("content").asInstanceOf[String])
 
-  println("length:"+contentRDD.collect().length)
-  contentRDD.foreach(content => println(content))
+    println("length:"+contentRDD.collect().length)
+  //  contentRDD.foreach(content => println(content))
+
+  // 读取字图
+  val readConfigCharacter = ReadConfig(
+    Map(
+      "uri" -> ("mongodb://"+Configuration.MONGODB_HOST+":27017"),
+      "database" -> "jd",
+      "collection" -> "graphx_edges"))
+  val characterEdgeRDD: MongoRDD[Document] = MongoSpark.load(sc, readConfigCharacter)
+  println("character:"+characterEdgeRDD.collect().length)
 
   def getCharacterPair(content: String): Array[List[String]] = {
     var characterArray = content.split("")
@@ -96,16 +107,10 @@ object GraphxCutter {
     edgeArray.toArray[Edge[Link]]
   })
 
-  def createGraph(): Graph[Word, Link] = {
+  def displayGraph(): Unit = {
     val verticesRDD: RDD[(VertexId, Word)] = getVerticesRDD
     val edgesRDD: RDD[Edge[Link]] = getEdgesRDD
     val graph: Graph[Word, Link] = Graph(verticesRDD, edgesRDD)
-    graph
-  }
-
-
-  def main(args: Array[String]): Unit = {
-    val graph: Graph[Word, Link] = createGraph()
     graph.cache()
 
     System.setProperty("gs.ui.renderer", "org.graphstream.ui.j2dviewer.J2DGraphRenderer")
@@ -123,7 +128,7 @@ object GraphxCutter {
       nodeCount += 1
       //      node.addAttribute("layout.weight","1000")
     }
-    println("node count = "+nodeCount)
+    println("node count = " + nodeCount)
 
     for (Edge(src, des, link: Link) <- graph.edges.collect()) {
       val edge = wordGraph.addEdge(src.toString ++ des.toString, src.toString, des.toString, true)
@@ -133,5 +138,11 @@ object GraphxCutter {
       edge.addAttribute("layout.weight", "0.1")
     }
     wordGraph.display()
+  }
+
+
+  def main(args: Array[String]): Unit = {
+    //    displayGraph()
+
   }
 }
