@@ -33,7 +33,7 @@ object GraphxSave extends App {
     val nodesRDD = nodesWithID.map(node => (node._2.toLong, node._1))
     //        val nodesRDD : RDD[(VertexId,Word)]= MongoSpark.load(sc, readConfig)
     println(nodesRDD.count())
-    val nodesRDDs = nodesRDD.collect()
+    val nodesRDDs: Array[(VertexId, Word)] = nodesRDD.collect()
     for (node <- nodesRDD) {
       println(node._1, node._2.wordName)
     }

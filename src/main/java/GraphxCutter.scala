@@ -18,6 +18,7 @@ import scala.util.Random
   * author: Qiao Hongbo
   * time: {$time}
   **/
+case class LinkInfo(weight: Int, srcName: String, desName: String)
 object GraphxCutter {
   val tool: Tool.type = Tool
   val sparkConf: SparkConf = new SparkConf()
@@ -36,9 +37,12 @@ object GraphxCutter {
 
     val $match: Document = Document.parse("{$match: {comment_id:{$gt:1}}}")
     val $skip: Document = Document.parse("{$skip: 10}")
-    val $limit: Document = Document.parse("{$limit: 5}")
+    val $limit: Document = Document.parse("{$limit: 1}")
 
-    val commentsPartMongoRDD: MongoRDD[Document] = commentsOriginalMongoRDD //commentsOriginalMongoRDD.withPipeline(Seq($match, $skip, $limit))
+    val commentsPartMongoRDD: MongoRDD[Document] =
+      //commentsOriginalMongoRDD
+      commentsOriginalMongoRDD.withPipeline(Seq($match, $skip, $limit))
+
     commentsPartMongoRDD
   }
 
@@ -52,7 +56,9 @@ object GraphxCutter {
     Map(
       "uri" -> ("mongodb://" + Configuration.MONGODB_HOST + ":27017"),
       "database" -> "jd",
-      "collection" -> "all_edges"))
+      "collection" -> "all_edges")
+//      "collection" -> "graphx_edges_sample")
+    )
   val characterEdgeRDD: MongoRDD[Document] = MongoSpark.load(sc, readConfigCharacter)
   println("character:" + characterEdgeRDD.collect().length)
 
@@ -87,7 +93,7 @@ object GraphxCutter {
 
   def getCommentVerticesRDD(commentsPartMongoRDD: MongoRDD[Document]): RDD[(VertexId, Word)] = {
     commentsPartMongoRDD.flatMap(comment => {
-      val cid = comment.get("comment_id").asInstanceOf[Int].toLong * 1000
+      val cid = comment.get("comment_id").asInstanceOf[Int].toLong * 10000
       val content = comment.get("content").asInstanceOf[String]
       val charArray = content.split("")
       var vertices = new ArrayBuffer[(VertexId, Word)]()
@@ -99,31 +105,67 @@ object GraphxCutter {
     })
   }
 
-  def getCommentEdgesRDD(commentsPartMongoRDD: MongoRDD[Document]): RDD[Edge[Link]] = {
+  def getCommentEdgesRDD(commentsPartMongoRDD: MongoRDD[Document]): RDD[Edge[LinkInfo]] = {
 
     commentsPartMongoRDD.flatMap(comment => {
       val content = comment.get("content").asInstanceOf[String]
-      val cid = comment.get("comment_id").asInstanceOf[Int].toLong * 1000
-      var edgeArray = new ArrayBuffer[Edge[Link]]()
+      val cid = comment.get("comment_id").asInstanceOf[Int].toLong * 10000
+      var edgeArray = new ArrayBuffer[Edge[LinkInfo]]()
 
       val charArray = content.split("")
 
       var i = 0
       for (i <- 0 until charArray.length - 1) {
-        edgeArray += Edge(cid + i, cid + i + 1, Link(1))
+        edgeArray += Edge(cid + i, cid + i + 1, LinkInfo(0, charArray(i), charArray(i+1)))
       }
 
-      edgeArray.toArray[Edge[Link]]
+      edgeArray.toArray[Edge[LinkInfo]]
     })
   }
 
-  def displayGraph(): Unit = {
+  def getCommentGraph: Graph[Word, Link] = {
     val commentPartRDD = getCommentPartRDD
     val verticesRDD: RDD[(VertexId, Word)] = getCommentVerticesRDD(commentPartRDD)
-    val edgesRDD: RDD[Edge[Link]] = getCommentEdgesRDD(commentPartRDD)
-    val graph: Graph[Word, Link] = Graph(verticesRDD, edgesRDD)
-    graph.cache()
+    val blankEdgesRDD: RDD[Edge[LinkInfo]] = getCommentEdgesRDD(commentPartRDD)
+    val blankEdgesPair: RDD[((Long, Long), (Long, Long))] = blankEdgesRDD.map(edge => {
+      val srcId = tool.utf8ToLong(edge.attr.srcName)
+      val dstId = tool.utf8ToLong(edge.attr.desName)
+      ((srcId, dstId), (edge.srcId, edge.dstId))
+    })
+    println("before join:"+blankEdgesPair.collect().length)
+    val corpusEdgesRDD: RDD[Edge[Link]] = getCharacterEdgesRDD
+    val corpusEdgesPair: RDD[((Long, Long), Link)] = corpusEdgesRDD.map(edge=>{
+      ((edge.srcId, edge.dstId), edge.attr)
+    })
+    val joinedEdgesRDD: RDD[((VertexId, VertexId), ((Long, Long), Option[Link]))] = blankEdgesPair.leftOuterJoin(corpusEdgesPair)
+    println("after join: "+joinedEdgesRDD.collect().length)
+    val filledEdgesRDD: RDD[Edge[Link]] = joinedEdgesRDD.map(rdd => {
+      val ids: (VertexId, VertexId) = rdd._2._1
+      val link: Option[Link] = rdd._2._2
+      Edge(ids._1, ids._2, link.getOrElse(Link(0)))
+    })
+//    val graph: Graph[Word, Link] = Graph(verticesRDD, filledEdgesRDD)
+    val blankEdgesTestRDD = blankEdgesRDD.map(edge => {
+      Edge(edge.srcId, edge.dstId, Link(edge.attr.weight))
+    })
+    val graph: Graph[Word, Link] = Graph(verticesRDD, filledEdgesRDD)
+//    val graph: Graph[Word, Link] = Graph(verticesRDD, blankEdgesTestRDD)
+    graph
+  }
 
+  def displayGraph(): Unit = {
+//    val commentPartRDD = getCommentPartRDD
+//    val verticesRDD: RDD[(VertexId, Word)] = getCommentVerticesRDD(commentPartRDD)
+//    val edgesRDD: RDD[Edge[LinkInfo]] = getCommentEdgesRDD(commentPartRDD)
+//    val graph: Graph[Word, LinkInfo] = Graph(verticesRDD, edgesRDD)
+//    graph.cache()
+    val graph: Graph[Word, Link] = getCommentGraph
+    def max(a: (VertexId, Int), b: (VertexId, Int)): (VertexId, Int) = {
+      if (a._2 > b._2) a else b
+    }
+    val maxInDegree: (VertexId, Int) = graph.inDegrees.reduce(max)
+    println("max indegree: "+maxInDegree)
+//    return
     System.setProperty("gs.ui.renderer", "org.graphstream.ui.j2dviewer.J2DGraphRenderer")
     val wordGraph: MultiGraph = new MultiGraph("WordGraph")
     wordGraph.addAttribute("ui.stylesheet", "url(./css/styleSheet.css)")
@@ -142,7 +184,7 @@ object GraphxCutter {
     println("node count = " + nodeCount)
 
     for (Edge(src, des, link: Link) <- graph.edges.collect()) {
-      val edge = wordGraph.addEdge(src.toString ++ des.toString, src.toString, des.toString, true)
+      val edge = wordGraph.addEdge(src.toString + des.toString, src.toString, des.toString, true)
         .asInstanceOf[AbstractEdge]
       //        edge.addAttribute("ui.style","size:"+link.weight+"px;")
       edge.addAttribute("ui.label", "" + link.weight)
@@ -166,6 +208,10 @@ object GraphxCutter {
       (id, Word(char))
     })
 
+//    val top = verticesWithId.map(v => (v._1, (1, v._2.wordName))).reduceByKey((v1, v2)=>(v1._1+v2._1, v1._2+v2._2)).map(item=>(item._2._1, item._2._2)).sortByKey(false).take(10)
+//    for(item <- top){
+//      println(item._2+" "+item._1)
+//    }
     verticesWithId
   }
 
@@ -187,13 +233,19 @@ object GraphxCutter {
     val corpusVertices = getCharacterVerticesRDD
     val corpusEdges = getCharacterEdgesRDD
     val corpusGraph: Graph[Word, Link] = Graph(corpusVertices, corpusEdges)
+    corpusGraph.edges
+      .map(edge => {
+        ((edge.srcId, edge.dstId), 1)
+      })
+        .reduceByKey((x1, x2) => if (x1>x2) x1 else x2)
+//      .map()
     corpusGraph
   }
 
   def main(args: Array[String]): Unit = {
-    //    displayGraph()
-    val corpusGraph = makeCharacterCorpusGraph
-    val edgeCount = corpusGraph.edges.collect.length
-    println("corpus edges count: " + edgeCount)
+        displayGraph()
+//    val corpusGraph = makeCharacterCorpusGraph
+//    val edgeCount = corpusGraph.edges.collect.length
+//    println("corpus edges count: " + edgeCount)
   }
 }
