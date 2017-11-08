@@ -170,15 +170,14 @@ object GraphxCutter {
     //    println("max indegree: "+maxInDegree)
     //    return
 
-    // A 代表句子开头
+    // A 代表评论开头
     // U 代表未分类
-    // B 代表词开头
-    // M 代表词中间
+    // E 该字为词结尾
+    // I 该字在词中间
+    // B 该字为词开头
     var notedGraph: Graph[WordNotation, Link] = graph.mapVertices(
       (vid, word: Word) => WordNotation(word.wordName, 'A', 0))
-    //    val noteGraph: Graph[Char, Link] = graph.mapVertices(
-    //      (_, _) => 'A'
-    //    )
+
     ////////////////////////// find 0 in-degree vertex//////////////////
     val vertexTesting: VertexRDD[WordNotation] = notedGraph.aggregateMessages[WordNotation](
       edgeContext => edgeContext.sendToDst(WordNotation(edgeContext.dstAttr.name, 'U', 0)),
@@ -222,12 +221,6 @@ object GraphxCutter {
         val preLinkWeight = msg
         // 输出边的权重保存在顶点上
         val linkWeight = wordNotation.linkWeight
-//        if (Math.abs(preLinkWeight - linkWeight) > (0.3 * linkWeight)) {
-//          //该字是词尾
-//          note = 'E'
-//        } else {
-//          note = 'M'
-//        }
         if(linkWeight == 0){
           note = 'E'
         }else if((preLinkWeight - linkWeight)/linkWeight < -0.3){
@@ -237,7 +230,7 @@ object GraphxCutter {
           // 词尾
           note = 'E'
         }else{
-          note = 'M'
+          note = 'I'
         }
       }
       WordNotation(wordNotation.name, note, wordNotation.linkWeight)
