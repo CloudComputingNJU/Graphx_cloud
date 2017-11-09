@@ -24,6 +24,7 @@ case class WordNotation(name: String, notation: Char, linkWeight: Int)
 
 object GraphxCutter {
   val tool: Tool.type = Tool
+
   val sparkConf: SparkConf = new SparkConf()
     .setAppName("GraphDraw13")
     .setMaster("local[2]")
@@ -292,7 +293,8 @@ object GraphxCutter {
       edge.addAttribute("ui.label", "" + link.weight)
       edge.addAttribute("layout.weight", "0.1")
     }
-    wordGraph.display()
+    //wordGraph.display()
+    disgra.cutAndSave(graph.mapVertices((id,tu)=>(tu.name,tu.notation)).mapEdges(lin=>lin.attr.weight))
   }
 
   def getCharacterVerticesRDD: RDD[(VertexId, Word)] = {
