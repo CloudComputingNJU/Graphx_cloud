@@ -18,7 +18,7 @@ node {
     text-mode:normal;
     text-style:bold;
     /*size-mode:fit;*/
-    text-size: 15px;
+    text-size: 20px;
     /*text-alignment:at-right;*/
     text-visibility-mode:normal;
     text-color:white;
@@ -32,7 +32,7 @@ edge {
     z-index: 0;
     text-alignment: along;
     text-color:white;
-    text-style:bold;
+    /*text-style:bold;*/
     text-size: 15px;
     text-mode:normal;
 }
