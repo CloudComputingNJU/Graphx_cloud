@@ -63,7 +63,7 @@ object disgra {
     val res=graph.mapVertices((id,yu)=>{if(ttstart.contains(id)){
       (yu._1,'X')}
       else {(yu._1,yu._2)}
-    }).pregel("",20)(
+    }).pregel("",50)(
       (id,ownmessage,resmes)=>
         {if(resmes==""){ (resmes+ownmessage._1,ownmessage._2)}
         else {
@@ -84,7 +84,7 @@ object disgra {
       },
       (a,b)=>a+"::"+b)
       val resarray=res.vertices.filter(tu=>ttend.contains(tu._1)).map(tu=>tu._2._1).collect()
-      val writer=new PrintWriter(new File("./data/cuttingresult.txt"))
+      val writer=new PrintWriter(new File("./data/CuttingResult.txt"))
       for(str<-resarray){
         writer.write("【原始】"+str.replace(" ","")+"\n")
         writer.write("【分词】"+str+"\n")

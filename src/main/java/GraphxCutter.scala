@@ -29,8 +29,8 @@ object GraphxCutter {
     .setAppName("GraphDraw13")
     .setMaster("local[2]")
     .set("spark.driver.host", "localhost")
-    .set("spark.mongodb.input.uri", "mongodb://" + Configuration.MONGODB_HOST + "/jd.comments_sorted")
-  //    .set("spark.mongodb.output.uri", "mongodb://" + Configuration.MONGODB_HOST + "/jd.graphx_vertexsWithID")
+        .set("spark.mongodb.input.uri", "mongodb://" + Configuration.MONGODB_HOST + "/jd.comments_sorted")
+//    .set("spark.mongodb.input.uri", "mongodb://" + Configuration.MONGODB_HOST + "/jd.comments_for_test")
 
   // 读取评论
   val sc = new SparkContext(sparkConf)
@@ -40,20 +40,17 @@ object GraphxCutter {
     val commentsOriginalMongoRDD: MongoRDD[Document] = MongoSpark.load(sc)
 
     val $match: Document = Document.parse("{$match: {comment_id:{$gt:1}}}")
-    val $skip: Document = Document.parse("{$skip: 100}")
-    val $limit: Document = Document.parse("{$limit: 10}")
+    val $skip: Document = Document.parse("{$skip: 320}")
+    val $limit: Document = Document.parse("{$limit: 50}")
 
     val commentsPartMongoRDD: MongoRDD[Document] =
-    //commentsOriginalMongoRDD
-      commentsOriginalMongoRDD.withPipeline(Seq($match, $skip, $limit))
+//      commentsOriginalMongoRDD
+          commentsOriginalMongoRDD.withPipeline(Seq($match, $skip, $limit))
 
     commentsPartMongoRDD
   }
 
   //  val contentRDD: RDD[String] = commentsPartMongoRDD.map(doc => doc.get("content").asInstanceOf[String])
-  //
-  //    println("length:"+contentRDD.collect().length)
-  //  contentRDD.foreach(content => println(content))
 
   // 读取字图
   val readConfigCharacter = ReadConfig(
@@ -64,7 +61,7 @@ object GraphxCutter {
     //      "collection" -> "graphx_edges_sample")
   )
   val characterEdgeRDD: MongoRDD[Document] = MongoSpark.load(sc, readConfigCharacter)
-  println("character:" + characterEdgeRDD.collect().length)
+//  println("character:" + characterEdgeRDD.collect().length)
 
   def getCharacterPair(content: String): Array[List[String]] = {
     var characterArray = content.split("")
@@ -136,13 +133,13 @@ object GraphxCutter {
       val dstId = tool.utf8ToLong(edge.attr.desName)
       ((srcId, dstId), (edge.srcId, edge.dstId))
     })
-    println("before join:" + blankEdgesPair.collect().length)
+//    println("before join:" + blankEdgesPair.collect().length)
     val corpusEdgesRDD: RDD[Edge[Link]] = getCharacterEdgesRDD
     val corpusEdgesPair: RDD[((Long, Long), Link)] = corpusEdgesRDD.map(edge => {
       ((edge.srcId, edge.dstId), edge.attr)
     })
     val joinedEdgesRDD: RDD[((VertexId, VertexId), ((Long, Long), Option[Link]))] = blankEdgesPair.leftOuterJoin(corpusEdgesPair)
-    println("after join: " + joinedEdgesRDD.collect().length)
+//    println("after join: " + joinedEdgesRDD.collect().length)
     val filledEdgesRDD: RDD[Edge[Link]] = joinedEdgesRDD.map(rdd => {
       val ids: (VertexId, VertexId) = rdd._2._1
       val link: Option[Link] = rdd._2._2
@@ -158,25 +155,14 @@ object GraphxCutter {
   }
 
   def displayGraph(): Unit = {
-    //    val commentPartRDD = getCommentPartRDD
-    //    val verticesRDD: RDD[(VertexId, Word)] = getCommentVerticesRDD(commentPartRDD)
-    //    val edgesRDD: RDD[Edge[LinkInfo]] = getCommentEdgesRDD(commentPartRDD)
-    //    val graph: Graph[Word, LinkInfo] = Graph(verticesRDD, edgesRDD)
-    //    graph.cache()
-    var graph: Graph[Word, Link] = getCommentGraph
-    //    def max(a: (VertexId, Int), b: (VertexId, Int)): (VertexId, Int) = {
-    //      if (a._2 > b._2) a else b
-    //    }
-    //    val maxInDegree: (VertexId, Int) = graph.inDegrees.reduce(max)
-    //    println("max indegree: "+maxInDegree)
-    //    return
+    val graph: Graph[Word, Link] = getCommentGraph
 
     // A 代表评论开头
     // U 代表未分类
     // E 该字为词结尾
     // I 该字在词中间
     // B 该字为词开头
-    var notedGraph: Graph[WordNotation, Link] = graph.mapVertices(
+    val notedGraph: Graph[WordNotation, Link] = graph.mapVertices(
       (vid, word: Word) => WordNotation(word.wordName, 'A', 0))
 
     ////////////////////////// find 0 in-degree vertex//////////////////
@@ -193,18 +179,18 @@ object GraphxCutter {
         WordNotation(name, c, -1)
       }
     )
-    var notedGraph2: Graph[WordNotation, Link] = notedGraph.joinVertices(vertexTesting)((vid: VertexId, init: WordNotation, change: WordNotation) => change)
+    val notedGraph2: Graph[WordNotation, Link] = notedGraph.joinVertices(vertexTesting)((vid: VertexId, init: WordNotation, change: WordNotation) => change)
 
-    notedGraph2 = notedGraph2.reverse
-    val vertexReverse: VertexRDD[WordNotation] = notedGraph2.aggregateMessages[WordNotation](
+    val notedGraphReverse = notedGraph2.reverse
+    val vertexReverse: VertexRDD[WordNotation] = notedGraphReverse.aggregateMessages[WordNotation](
       edgeContext => edgeContext.sendToDst(WordNotation(edgeContext.dstAttr.name, edgeContext.dstAttr.notation, edgeContext.attr.weight)),
       (x1, x2) => {
         val weight = x1.linkWeight
         WordNotation(x1.name, x1.notation, weight)
       }
     )
-    notedGraph2 = notedGraph2.reverse
-    notedGraph2 = notedGraph2.joinVertices(vertexReverse)((vid: VertexId, init: WordNotation, change: WordNotation) => change)
+    var notedGraphReverseReverse = notedGraphReverse.reverse
+    notedGraphReverseReverse = notedGraphReverseReverse.joinVertices(vertexReverse)((vid: VertexId, init: WordNotation, change: WordNotation) => change)
 
     //    val notationGraph: Graph[WordNotation, Link] = graph.joinVertices(vertexTesting)((vid, word: Word, tt)=>null)
     //////////////////////////// cut /////////////////////////////////////
@@ -224,7 +210,7 @@ object GraphxCutter {
         val linkWeight = wordNotation.linkWeight
         if (linkWeight == 0) {
           note = 'E'
-        } else if ((preLinkWeight - linkWeight) / linkWeight < -0.1) {
+        } else if (preLinkWeight < 0.7 * linkWeight) {
           // 词头
           note = 'B'
         } else if ((preLinkWeight - linkWeight) / linkWeight > 0.1) {
@@ -250,15 +236,20 @@ object GraphxCutter {
       iterator
     }
 
-    val cutGraph = notedGraph2.pregel(-1, 50, EdgeDirection.Out)(vprog, sendMsg, (x1, x2) => x1 + x2)
+    val cutGraph = notedGraphReverseReverse.pregel(-1, 50, EdgeDirection.Out)(vprog, sendMsg, (x1, x2) => x1 + x2)
 
     System.setProperty("gs.ui.renderer", "org.graphstream.ui.j2dviewer.J2DGraphRenderer")
-    //    display(notedGraph)
-    //    display(notedGraph2)
-    display(cutGraph)
+//    display(notedGraph, true, false)
+//    display(notedGraph2, true, false)
+//    display(notedGraphReverse, true, false)
+//    display(notedGraphReverseReverse, false, true)
+//    display(cutGraph, true, false)
+
+    disgra.cutAndSave(cutGraph.mapVertices((id, tu) => (tu.name, tu.notation)).mapEdges(lin => lin.attr.weight))
+
   }
 
-  def display(graph: Graph[WordNotation, Link]) = {
+  def display(graph: Graph[WordNotation, Link], withNotation: Boolean, withWeight: Boolean) = {
     val wordGraph: MultiGraph = new MultiGraph("WordGraph")
     wordGraph.addAttribute("ui.stylesheet", "url(./css/styleSheet.css)")
     wordGraph.addAttribute("ui.quality")
@@ -270,7 +261,14 @@ object GraphxCutter {
 
     for ((id, wordNotation: WordNotation) <- graph.vertices.collect()) {
       val node = wordGraph.addNode(id.toString).asInstanceOf[MultiNode]
-      node.addAttribute("ui.label", wordNotation.name + wordNotation.notation)
+      var label = wordNotation.name
+      if (withNotation) {
+        label = label + wordNotation.notation
+      }
+      if (withWeight){
+        label = label + wordNotation.linkWeight
+      }
+      node.addAttribute("ui.label", label)
     }
     //    println("node count = " + nodeCount)
 
@@ -281,8 +279,7 @@ object GraphxCutter {
       edge.addAttribute("ui.label", "" + link.weight)
       edge.addAttribute("layout.weight", "0.1")
     }
-    //wordGraph.display()
-    disgra.cutAndSave(graph.mapVertices((id, tu) => (tu.name, tu.notation)).mapEdges(lin => lin.attr.weight))
+    wordGraph.display()
   }
 
   def getCharacterVerticesRDD: RDD[(VertexId, Word)] = {
