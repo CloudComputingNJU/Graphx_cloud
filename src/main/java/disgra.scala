@@ -69,9 +69,9 @@ object disgra {
         else {
           ownmessage._2 match {
         case 'M'=>(resmes+ownmessage._1,'X');
-        case 'E'=>(resmes+ownmessage._1+";",'X');
-        case 'B'=>(resmes+";"+ownmessage._1,'X');
-        case 'S'=>(resmes+ownmessage._1+";",'X');
+        case 'E'=>(resmes+ownmessage._1+" ",'X');
+        case 'B'=>(resmes+" "+ownmessage._1,'X');
+        case 'S'=>(resmes+ownmessage._1+" ",'X');
         case 'I'=>(resmes+ownmessage._1,'X');
         case _=>(ownmessage._1,'X')
       }}},
@@ -86,7 +86,9 @@ object disgra {
       val resarray=res.vertices.filter(tu=>ttend.contains(tu._1)).map(tu=>tu._2._1).collect()
       val writer=new PrintWriter(new File("./data/cuttingresult.txt"))
       for(str<-resarray){
-        writer.write(str+"\n")
+        writer.write("【原始】"+str.replace(" ","")+"\n")
+        writer.write("【分词】"+str+"\n")
+        writer.write("\n")
       }
       writer.close()
     //draw(graph)
