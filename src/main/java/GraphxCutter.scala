@@ -41,7 +41,7 @@ object GraphxCutter {
 
     val $match: Document = Document.parse("{$match: {comment_id:{$gt:1}}}")
     val $skip: Document = Document.parse("{$skip: 100}")
-    val $limit: Document = Document.parse("{$limit: 1}")
+    val $limit: Document = Document.parse("{$limit: 10}")
 
     val commentsPartMongoRDD: MongoRDD[Document] =
     //commentsOriginalMongoRDD
@@ -214,7 +214,7 @@ object GraphxCutter {
       var note = wordNotation.notation
       if (msg == -1) {
         // 初始消息，非评论的第一个字顶点忽略
-        if(wordNotation.notation == 'A'){
+        if (wordNotation.notation == 'A') {
 
         }
       } else {
@@ -222,15 +222,15 @@ object GraphxCutter {
         val preLinkWeight = msg
         // 输出边的权重保存在顶点上
         val linkWeight = wordNotation.linkWeight
-        if(linkWeight == 0){
+        if (linkWeight == 0) {
           note = 'E'
-        }else if((preLinkWeight - linkWeight)/linkWeight < -0.3){
+        } else if ((preLinkWeight - linkWeight) / linkWeight < -0.1) {
           // 词头
           note = 'B'
-        }else if((preLinkWeight - linkWeight)/linkWeight > 0.3){
+        } else if ((preLinkWeight - linkWeight) / linkWeight > 0.1) {
           // 词尾
           note = 'E'
-        }else{
+        } else {
           note = 'I'
         }
       }
@@ -243,22 +243,22 @@ object GraphxCutter {
       var iterator: Iterator[(VertexId, Int)] = Iterator()
       if (triplet.srcAttr.notation == 'U') {
         // 不传播
-//        iterator = Iterator[(VertexId, Int)]((dstId, 0))
+        //        iterator = Iterator[(VertexId, Int)]((dstId, 0))
       } else {
         iterator = Iterator[(VertexId, Int)]((dstId, weight))
       }
       iterator
     }
 
-    val cutGraph = notedGraph2.pregel(-1, 100, EdgeDirection.Out)(vprog, sendMsg, (x1, x2)=>x1+x2)
+    val cutGraph = notedGraph2.pregel(-1, 50, EdgeDirection.Out)(vprog, sendMsg, (x1, x2) => x1 + x2)
 
     System.setProperty("gs.ui.renderer", "org.graphstream.ui.j2dviewer.J2DGraphRenderer")
-//    display(notedGraph)
-//    display(notedGraph2)
+    //    display(notedGraph)
+    //    display(notedGraph2)
     display(cutGraph)
   }
 
-  def display(graph: Graph[WordNotation, Link]) ={
+  def display(graph: Graph[WordNotation, Link]) = {
     val wordGraph: MultiGraph = new MultiGraph("WordGraph")
     wordGraph.addAttribute("ui.stylesheet", "url(./css/styleSheet.css)")
     wordGraph.addAttribute("ui.quality")
@@ -267,23 +267,11 @@ object GraphxCutter {
     wordGraph.addAttribute("layout.quality", "0")
 
     var nodeCount = 0
-    //    for ((id, word: Word) <- graph.vertices.collect()) {
-    //      val node = wordGraph.addNode(id.toString).asInstanceOf[MultiNode]
-    //      node.addAttribute("ui.label", word.wordName)
-    //      nodeCount += 1
-    //            //node.addAttribute("layout.weight","1000")
-    //    }
 
-
-//    for ((id, wordNotation: WordNotation) <- graph.vertices.collect()) {
-//      val node = wordGraph.addNode(id.toString).asInstanceOf[MultiNode]
-//      node.addAttribute("ui.label", wordNotation.linkWeight + "")
-//    }
-
-        for ((id, wordNotation: WordNotation) <- graph.vertices.collect()) {
-          val node = wordGraph.addNode(id.toString).asInstanceOf[MultiNode]
-          node.addAttribute("ui.label", wordNotation.name + wordNotation.notation)
-        }
+    for ((id, wordNotation: WordNotation) <- graph.vertices.collect()) {
+      val node = wordGraph.addNode(id.toString).asInstanceOf[MultiNode]
+      node.addAttribute("ui.label", wordNotation.name + wordNotation.notation)
+    }
     //    println("node count = " + nodeCount)
 
     for (Edge(src, des, link: Link) <- graph.edges.collect()) {
@@ -294,7 +282,7 @@ object GraphxCutter {
       edge.addAttribute("layout.weight", "0.1")
     }
     //wordGraph.display()
-    disgra.cutAndSave(graph.mapVertices((id,tu)=>(tu.name,tu.notation)).mapEdges(lin=>lin.attr.weight))
+    disgra.cutAndSave(graph.mapVertices((id, tu) => (tu.name, tu.notation)).mapEdges(lin => lin.attr.weight))
   }
 
   def getCharacterVerticesRDD: RDD[(VertexId, Word)] = {
@@ -310,11 +298,6 @@ object GraphxCutter {
       val id = tool.utf8ToLong(char)
       (id, Word(char))
     })
-
-    //    val top = verticesWithId.map(v => (v._1, (1, v._2.wordName))).reduceByKey((v1, v2)=>(v1._1+v2._1, v1._2+v2._2)).map(item=>(item._2._1, item._2._2)).sortByKey(false).take(10)
-    //    for(item <- top){
-    //      println(item._2+" "+item._1)
-    //    }
     verticesWithId
   }
 
@@ -336,12 +319,6 @@ object GraphxCutter {
     val corpusVertices = getCharacterVerticesRDD
     val corpusEdges = getCharacterEdgesRDD
     val corpusGraph: Graph[Word, Link] = Graph(corpusVertices, corpusEdges)
-    //    corpusGraph.edges
-    //      .map(edge => {
-    //        ((edge.srcId, edge.dstId), 1)
-    //      })
-    //        .reduceByKey((x1, x2) => if (x1>x2) x1 else x2)
-    //      .map()
     corpusGraph
   }
 

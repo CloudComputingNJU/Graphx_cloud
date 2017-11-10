@@ -9,6 +9,7 @@ import sun.security.provider.certpath.Vertex
 import org.apache.log4j
 object disgra {
   def cutAndSave(graph: Graph[(String,Char),Int]): Unit = {
+    val spliter = " "
     import org.apache.log4j.PropertyConfigurator
     PropertyConfigurator.configure("./log4j.properties")
    // val sparkConf = new SparkConf()
@@ -69,9 +70,9 @@ object disgra {
         else {
           ownmessage._2 match {
         case 'M'=>(resmes+ownmessage._1,'X');
-        case 'E'=>(resmes+ownmessage._1+";",'X');
-        case 'B'=>(resmes+";"+ownmessage._1,'X');
-        case 'S'=>(resmes+ownmessage._1+";",'X');
+        case 'E'=>(resmes+ownmessage._1+spliter,'X');
+        case 'B'=>(resmes+spliter+ownmessage._1,'X');
+        case 'S'=>(resmes+ownmessage._1+spliter,'X');
         case 'I'=>(resmes+ownmessage._1,'X');
         case _=>(ownmessage._1,'X')
       }}},
